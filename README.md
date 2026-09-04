@@ -1,6 +1,6 @@
 # SG2 Old Launcher Bridge
 
-A small script for restoring the historical `launcher.exe` launch path for legacy Splitgate 2/Arena Reloaded builds, regardless of which historical build you are using.
+A small script for restoring the historical `launcher.exe` launch path for legacy Splitgate 2/Arena Reloaded builds that use this Steam launch path.
 
 ## Required launcher location
 
