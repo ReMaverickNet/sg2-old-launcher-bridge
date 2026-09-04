@@ -84,7 +84,7 @@ install_bridge() {
 
     if [[ -L "$TARGET" ]]; then
         current_link="$(readlink "$TARGET")"
-        if [[ "$current_link" == "../../../../launcher.exe" ]]; then
+        if [[ "$current_link" == "../../../launcher.exe" ]]; then
             echo "Bridge is already installed."
             exit 0
         fi
@@ -115,9 +115,9 @@ install_bridge() {
     fi
 
     echo "Creating Steam launch bridge..."
-    # TARGET_DIR -> GAME_DIR is four levels up:
+    # TARGET_DIR -> GAME_DIR is three levels up:
     # Win64 -> Binaries -> PortalWars2 -> Splitgate 2
-    ln -s "../../../../launcher.exe" "$TARGET"
+    ln -s "../../../launcher.exe" "$TARGET"
 
     echo
     echo "Installed successfully."
