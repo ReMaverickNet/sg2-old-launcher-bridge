@@ -10,6 +10,8 @@ The historical launcher must be located at:
 ~/.local/share/Steam/steamapps/common/Splitgate 2/launcher.exe
 ```
 
+If your game is in another drive, please edit that respective line.
+
 ## Usage
 
 ```bash
