@@ -82,13 +82,15 @@ function Get-GameDirectory {
 
 $GameDir = Get-GameDirectory
 $Launcher = Join-Path $GameDir 'launcher.exe'
-$P2PExe = Join-Path $GameDir 'PortalWars2\Binaries\Win64\PortalWars2-Win64-Shipping.exe'
-$Backup = "$P2PExe.p2p-backup"
+$TargetDir = Join-Path $GameDir 'PortalWars2\Binaries\Win64'
+$Target = Join-Path $TargetDir 'PortalWars2-Win64-Shipping.exe'
+$Backup = "$Target.original-backup"
+$LegacyBackup = "$Target.p2p-backup"
 
 function Show-Status {
     Write-Host "Game directory: $GameDir"
     Write-Host "Launcher:       $Launcher"
-    Write-Host "Steam target:   $P2PExe"
+    Write-Host "Steam target:   $Target"
     Write-Host "Backup:         $Backup"
     Write-Host ''
 
@@ -99,13 +101,15 @@ function Show-Status {
     }
 
     if (Test-Path -LiteralPath $Backup -PathType Leaf) {
-        Write-Host 'P2P backup:           PRESENT' -ForegroundColor Green
+        Write-Host 'Original backup:      PRESENT' -ForegroundColor Green
+    } elseif (Test-Path -LiteralPath $LegacyBackup -PathType Leaf) {
+        Write-Host 'Legacy backup:        PRESENT' -ForegroundColor Green
     } else {
-        Write-Host 'P2P backup:           absent'
+        Write-Host 'Original backup:      absent'
     }
 
-    if (Test-Path -LiteralPath $P2PExe) {
-        $item = Get-Item -LiteralPath $P2PExe -Force
+    if (Test-Path -LiteralPath $Target) {
+        $item = Get-Item -LiteralPath $Target -Force
         if ($item.LinkType -eq 'SymbolicLink' -or $item.LinkType -eq 'HardLink') {
             Write-Host "Steam target:         $($item.LinkType) -> $($item.Target)" -ForegroundColor Cyan
         } else {
@@ -121,36 +125,48 @@ function Install-Bridge {
         throw "Historical launcher not found: $Launcher"
     }
 
-    if (-not (Test-Path -LiteralPath $P2PExe)) {
-        throw "Current P2P executable not found: $P2PExe"
+    if (-not (Test-Path -LiteralPath $TargetDir -PathType Container)) {
+        New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
     }
 
-    if (Test-Path -LiteralPath $P2PExe -PathType Container) {
-        throw "Expected executable path is a directory: $P2PExe"
+    if (Test-Path -LiteralPath $Target -PathType Container) {
+        throw "Expected executable path is a directory: $Target"
     }
 
-    if (Test-Path -LiteralPath $Backup) {
-        throw "Backup already exists: $Backup`nRefusing to overwrite it. Run 'restore' first if you need to reset the bridge."
+    if ((Test-Path -LiteralPath $Backup) -or (Test-Path -LiteralPath $LegacyBackup)) {
+        $existingBackup = if (Test-Path -LiteralPath $Backup) { $Backup } else { $LegacyBackup }
+        throw "Backup already exists: $existingBackup`nRefusing to overwrite it. Run 'restore' first if you need to reset the bridge."
     }
 
-    $item = Get-Item -LiteralPath $P2PExe -Force
-    if ($item.LinkType) {
-        throw "Steam target is already a link ($($item.LinkType)). Refusing to overwrite it: $P2PExe"
-    }
+    if (Test-Path -LiteralPath $Target) {
+        $item = Get-Item -LiteralPath $Target -Force
+        if ($item.LinkType) {
+            $resolvedTarget = $item.Target
+            if ($resolvedTarget -eq '..\..\..\..\launcher.exe' -or $resolvedTarget -eq $Launcher) {
+                Write-Host 'Bridge is already installed.' -ForegroundColor Green
+                return
+            }
+            throw "Steam target is already a link ($($item.LinkType)). Refusing to overwrite it: $Target"
+        }
 
-    Write-Host 'Backing up the current P2P executable...' -ForegroundColor Cyan
-    Move-Item -LiteralPath $P2PExe -Destination $Backup
+        if (-not $item.PSIsContainer) {
+            Write-Host 'Backing up the existing Steam target...' -ForegroundColor Cyan
+            Move-Item -LiteralPath $Target -Destination $Backup
+        }
+    }
 
     try {
         Write-Host 'Creating launcher bridge...' -ForegroundColor Cyan
         $relativeTarget = '..\..\..\..\launcher.exe'
-        New-Item -ItemType SymbolicLink -Path $P2PExe -Target $relativeTarget | Out-Null
+        New-Item -ItemType SymbolicLink -Path $Target -Target $relativeTarget | Out-Null
     } catch {
-        Write-Host 'Bridge creation failed; restoring the P2P executable...' -ForegroundColor Yellow
-        if (Test-Path -LiteralPath $P2PExe) {
-            Remove-Item -LiteralPath $P2PExe -Force
+        Write-Host 'Bridge creation failed; restoring the original target...' -ForegroundColor Yellow
+        if (Test-Path -LiteralPath $Target) {
+            Remove-Item -LiteralPath $Target -Force
         }
-        Move-Item -LiteralPath $Backup -Destination $P2PExe
+        if (Test-Path -LiteralPath $Backup -PathType Leaf) {
+            Move-Item -LiteralPath $Backup -Destination $Target
+        }
         throw
     }
 
@@ -158,20 +174,22 @@ function Install-Bridge {
 }
 
 function Restore-Bridge {
-    if (-not (Test-Path -LiteralPath $Backup -PathType Leaf)) {
-        throw "P2P backup not found: $Backup"
-    }
+    $restoreBackup = if (Test-Path -LiteralPath $Backup -PathType Leaf) { $Backup } elseif (Test-Path -LiteralPath $LegacyBackup -PathType Leaf) { $LegacyBackup } else { $null }
 
-    if (Test-Path -LiteralPath $P2PExe) {
-        $item = Get-Item -LiteralPath $P2PExe -Force
+    if (Test-Path -LiteralPath $Target) {
+        $item = Get-Item -LiteralPath $Target -Force
         if (-not $item.LinkType) {
-            throw "Steam target is a regular file, not the bridge symlink. Refusing to overwrite it: $P2PExe"
+            throw "Steam target is a regular file, not the bridge symlink. Refusing to overwrite it: $Target"
         }
-        Remove-Item -LiteralPath $P2PExe -Force
+        Remove-Item -LiteralPath $Target -Force
     }
 
-    Move-Item -LiteralPath $Backup -Destination $P2PExe
-    Write-Host 'Original P2P executable restored successfully.' -ForegroundColor Green
+    if ($restoreBackup) {
+        Move-Item -LiteralPath $restoreBackup -Destination $Target
+        Write-Host 'Original executable restored successfully.' -ForegroundColor Green
+    } else {
+        Write-Host 'Bridge removed. No backed-up executable was present.' -ForegroundColor Yellow
+    }
 }
 
 if (-not $Action) {
