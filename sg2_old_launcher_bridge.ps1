@@ -142,7 +142,7 @@ function Install-Bridge {
         $item = Get-Item -LiteralPath $Target -Force
         if ($item.LinkType) {
             $resolvedTarget = $item.Target
-            if ($resolvedTarget -eq '..\..\..\..\launcher.exe' -or $resolvedTarget -eq $Launcher) {
+            if ($resolvedTarget -eq '..\..\..\launcher.exe' -or $resolvedTarget -eq $Launcher) {
                 Write-Host 'Bridge is already installed.' -ForegroundColor Green
                 return
             }
@@ -157,7 +157,7 @@ function Install-Bridge {
 
     try {
         Write-Host 'Creating launcher bridge...' -ForegroundColor Cyan
-        $relativeTarget = '..\..\..\..\launcher.exe'
+        $relativeTarget = '..\..\..\launcher.exe'
         New-Item -ItemType SymbolicLink -Path $Target -Target $relativeTarget | Out-Null
     } catch {
         Write-Host 'Bridge creation failed; restoring the original target...' -ForegroundColor Yellow
