@@ -1,6 +1,14 @@
 # SG2 Old Launcher Bridge
 
-A small Linux script for restoring the historical `launcher.exe` launch path for legacy Splitgate 2 builds, while keeping the current P2P executable backed up and easily restorable.
+A small Linux script for restoring the historical `launcher.exe` launch path for legacy Splitgate 2/Arena Reloaded builds, while keeping the current P2P executable backed up and easily restorable.
+
+## Required launcher location
+
+The historical launcher must be located at:
+
+```text
+~/.local/share/Steam/steamapps/common/Splitgate 2/launcher.exe
+```
 
 ## Usage
 
@@ -11,3 +19,7 @@ A small Linux script for restoring the historical `launcher.exe` launch path for
 ```
 
 `install` enables the old launcher, `restore` returns the P2P executable, and `status` shows the current state.
+
+---
+
+This project is not affiliated with 1047 Games, Splitgate etc.
