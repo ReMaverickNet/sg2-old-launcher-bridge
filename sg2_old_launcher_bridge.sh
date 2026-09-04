@@ -23,10 +23,10 @@ usage() {
     cat <<EOF
 Usage: $0 {install|restore|status}
 
-install  Back up the current P2P executable and replace it with a symlink
+install  Back up the current P2P executable (if it exists as a precaution) and replace it with a symlink
          to the historical root-level launcher.exe.
 
-restore  Remove the symlink and restore the original P2P executable.
+restore  Remove the symlink (and restore the original P2P executable if it existed).
 
 status   Show what is currently installed.
 
@@ -70,7 +70,7 @@ install_bridge() {
         echo "ERROR: Historical launcher.exe was not found:"
         echo "  $LAUNCHER"
         echo
-        echo "Place the June-era launcher.exe in the root of the game directory,"
+        echo "Place the launcher.exe in the root of the game directory,"
         echo "or set STEAM_GAME_DIR to the correct installation path."
         exit 1
     fi
@@ -147,7 +147,7 @@ restore_bridge() {
     else
         echo
         echo "WARNING: No .p2p-backup file was found."
-        echo "The bridge was removed, but the original P2P executable was not restored."
+        echo "The bridge was removed, but the original P2P executable was not restored if it existed (if you're using an old build, you can ignore this message)."
     fi
 }
 
