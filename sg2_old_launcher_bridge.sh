@@ -3,30 +3,32 @@ set -euo pipefail
 
 # Splitgate 2 historical-launcher bridge
 #
-# Makes Steam's CURRENT expected executable path resolve to the historical
-# root-level launcher.exe, while preserving the current P2P executable for
-# easy restoration.
+# Makes Steam's expected executable path resolve to the historical
+# root-level launcher.exe, while preserving any existing executable at Steam's expected path
+# for easy restoration.
 #
 # Historical launch target:
 #   <Steam>/Splitgate 2/launcher.exe
 #
-# Current Steam target:
+# Steam target:
 #   <Steam>/Splitgate 2/PortalWars2/Binaries/Win64/PortalWars2-Win64-Shipping.exe
 
 GAME_DIR="${STEAM_GAME_DIR:-$HOME/.local/share/Steam/steamapps/common/Splitgate 2}"
 LAUNCHER="$GAME_DIR/launcher.exe"
 TARGET_DIR="$GAME_DIR/PortalWars2/Binaries/Win64"
 TARGET="$TARGET_DIR/PortalWars2-Win64-Shipping.exe"
-BACKUP="$TARGET.p2p-backup"
+BACKUP="$TARGET.original-backup"
+LEGACY_BACKUP="$TARGET.p2p-backup"
 
 usage() {
     cat <<EOF
 Usage: $0 {install|restore|status}
 
-install  Back up the current P2P executable (if it exists as a precaution) and replace it with a symlink
-         to the historical root-level launcher.exe.
+install  If an executable is present at Steam's expected path, back it up,
+         then replace the path with a symlink to the historical launcher.exe.
 
-restore  Remove the symlink (and restore the original P2P executable if it existed).
+restore  Remove the symlink and restore the original executable when one
+         was backed up.
 
 status   Show what is currently installed.
 
@@ -53,15 +55,18 @@ status() {
         echo "[BRIDGE] Steam target is a symlink:"
         readlink "$TARGET"
     elif [[ -f "$TARGET" ]]; then
-        echo "[P2P] Steam target is a regular file"
+        echo "[FILE] Steam target is a regular file"
         stat -c '     size: %s bytes' "$TARGET"
     else
         echo "[!!] Steam target does not exist"
     fi
 
     if [[ -f "$BACKUP" ]]; then
-        echo "[BACKUP] Original P2P executable:"
+        echo "[BACKUP] Original executable:"
         stat -c '         size: %s bytes' "$BACKUP"
+    elif [[ -f "$LEGACY_BACKUP" ]]; then
+        echo "[BACKUP] Legacy .p2p-backup executable:"
+        stat -c '         size: %s bytes' "$LEGACY_BACKUP"
     fi
 }
 
@@ -70,7 +75,7 @@ install_bridge() {
         echo "ERROR: Historical launcher.exe was not found:"
         echo "  $LAUNCHER"
         echo
-        echo "Place the launcher.exe in the root of the game directory,"
+        echo "Place the launcher.exe from the historical build in the root of the game directory,"
         echo "or set STEAM_GAME_DIR to the correct installation path."
         exit 1
     fi
@@ -90,17 +95,23 @@ install_bridge() {
         exit 1
     fi
 
-    if [[ -f "$TARGET" ]]; then
-        if [[ -e "$BACKUP" ]]; then
-            echo "ERROR: Backup already exists:"
-            echo "  $BACKUP"
-            echo
-            echo "Refusing to overwrite it. Use 'restore' first."
-            exit 1
-        fi
+    if [[ -e "$BACKUP" || -e "$LEGACY_BACKUP" ]]; then
+        existing_backup="$BACKUP"
+        [[ -e "$BACKUP" ]] || existing_backup="$LEGACY_BACKUP"
+        echo "ERROR: Backup already exists:"
+        echo "  $existing_backup"
+        echo
+        echo "Refusing to overwrite it. Use 'restore' first."
+        exit 1
+    fi
 
-        echo "Backing up current P2P executable..."
+    if [[ -f "$TARGET" ]]; then
+        echo "Backing up the existing Steam target..."
         mv -- "$TARGET" "$BACKUP"
+    elif [[ -e "$TARGET" ]]; then
+        echo "ERROR: $TARGET exists but is not a regular file or symlink."
+        echo "Refusing to overwrite it."
+        exit 1
     fi
 
     echo "Creating Steam launch bridge..."
@@ -111,7 +122,7 @@ install_bridge() {
     echo
     echo "Installed successfully."
     echo
-    echo "Steam will still try to launch:"
+    echo "Steam will still try to launch its expected executable path:"
     echo "  $TARGET"
     echo
     echo "but Linux will resolve that path to:"
@@ -125,8 +136,12 @@ install_bridge() {
 restore_bridge() {
     if [[ ! -L "$TARGET" ]]; then
         if [[ -f "$BACKUP" ]]; then
-            echo "No symlink is present; restoring the P2P executable..."
+            echo "No symlink is present; restoring the backed-up executable..."
             mv -- "$BACKUP" "$TARGET"
+            echo "Restored."
+        elif [[ -f "$LEGACY_BACKUP" ]]; then
+            echo "No symlink is present; restoring the legacy backed-up executable..."
+            mv -- "$LEGACY_BACKUP" "$TARGET"
             echo "Restored."
         else
             echo "Nothing to restore."
@@ -141,13 +156,17 @@ restore_bridge() {
     rm -- "$TARGET"
 
     if [[ -f "$BACKUP" ]]; then
-        echo "Restoring original P2P executable..."
+        echo "Restoring original executable..."
         mv -- "$BACKUP" "$TARGET"
+        echo "Restored successfully."
+    elif [[ -f "$LEGACY_BACKUP" ]]; then
+        echo "Restoring legacy backed-up executable..."
+        mv -- "$LEGACY_BACKUP" "$TARGET"
         echo "Restored successfully."
     else
         echo
-        echo "WARNING: No .p2p-backup file was found."
-        echo "The bridge was removed, but the original P2P executable was not restored if it existed (if you're using an old build, you can ignore this message)."
+        echo "WARNING: No backup file was found."
+        echo "The bridge was removed, but no original executable was available to restore."
     fi
 }
 
