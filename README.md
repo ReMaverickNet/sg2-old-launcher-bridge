@@ -16,6 +16,7 @@ If your game is installed elsewhere, set `STEAM_GAME_DIR` to the game directory.
 ## Usage
 
 ### Linux
+#### [Download for Linux](https://github.com/ReMaverickNet/sg2-old-launcher-bridge/releases/download/Release/sg2_old_launcher_bridge.sh)
 
 ```bash
 ./sg2_old_launcher_bridge.sh install
@@ -24,6 +25,7 @@ If your game is installed elsewhere, set `STEAM_GAME_DIR` to the game directory.
 ```
 
 ### Windows
+#### [Download for Windows](https://github.com/ReMaverickNet/sg2-old-launcher-bridge/releases/download/Release/sg2_old_launcher_bridge.ps1)
 
 ```powershell
 .\sg2_old_launcher_bridge.ps1 install
